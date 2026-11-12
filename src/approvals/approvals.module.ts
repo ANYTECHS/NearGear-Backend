@@ -3,9 +3,10 @@ import { ApprovalsService } from './approvals.service.js';
 import { ApprovalsController } from './approvals.controller.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { BlockchainModule } from '../blockchain/blockchain.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
-  imports: [PrismaModule, BlockchainModule],
+  imports: [PrismaModule, BlockchainModule, NotificationsModule],
   controllers: [ApprovalsController],
   providers: [ApprovalsService],
   exports: [ApprovalsService],

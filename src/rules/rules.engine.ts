@@ -101,6 +101,64 @@ export class RulesEngine {
         break;
       }
 
+      case 'SCHEDULED_TRANSFER': {
+        const targetRecipient = condition.recipientAddress || condition.recipient;
+        const scheduledAmount = condition.amount || '0';
+        const taskCategory = condition.task || 'scheduled_payment';
+        const currentHour = new Date().getUTCHours();
+        const allowedStartHour = parseInt(condition.startHourUtc ?? '8', 10);
+        const allowedEndHour = parseInt(condition.endHourUtc ?? '18', 10);
+
+        const isWithinWindow =
+          currentHour >= allowedStartHour && currentHour < allowedEndHour;
+
+        if (isWithinWindow) {
+          return {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            triggered: true,
+            reason: `Scheduled payout of ${scheduledAmount} NEAR for task "${taskCategory}" to ${targetRecipient || 'vendor'} is active during operating window (${allowedStartHour}:00 - ${allowedEndHour}:00 UTC)`,
+            suggestedAction: {
+              type: 'CREATE_APPROVAL',
+              payload: {
+                recipientAddress: targetRecipient,
+                amount: scheduledAmount,
+                task: taskCategory,
+                reason: `Automated scheduled transfer evaluated within time window`,
+              },
+            },
+          };
+        }
+        break;
+      }
+
+      case 'INCOMING_PAYMENT': {
+        const minAmount = parseFloat(condition.minAmount || '0');
+        const incomingTx = recentTransactions.find(
+          (tx) =>
+            (tx.type === 'DEPOSIT' || parseFloat(tx.amount.toString()) > 0) &&
+            parseFloat(tx.amount.toString()) >= minAmount,
+        );
+
+        if (incomingTx) {
+          return {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            triggered: true,
+            reason: `Incoming payment of ${incomingTx.amount} ${incomingTx.tokenSymbol || 'NEAR'} detected`,
+            suggestedAction: {
+              type: 'NOTIFY',
+              payload: {
+                txHash: incomingTx.txHash,
+                amount: incomingTx.amount.toString(),
+                severity: 'INFO',
+              },
+            },
+          };
+        }
+        break;
+      }
+
       default:
         break;
     }

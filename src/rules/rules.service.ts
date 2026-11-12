@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RulesEngine } from './rules.engine.js';
+import { TelegramService } from '../notifications/telegram.service.js';
 import { CreateRuleDto } from './dto/create-rule.dto.js';
 import { UpdateRuleDto } from './dto/update-rule.dto.js';
 
@@ -16,7 +17,8 @@ export class RulesService {
   constructor(
     private prisma: PrismaService,
     private rulesEngine: RulesEngine,
-  ) {}
+    private telegramService: TelegramService,
+  ) { }
 
   private async verifyTreasuryAccess(treasuryId: string, userId: string) {
     const treasury = await this.prisma.treasury.findUnique({
@@ -140,7 +142,7 @@ export class RulesService {
   }
 
   async evaluateRules(treasuryId: string, userId: string) {
-    await this.verifyTreasuryAccess(treasuryId, userId);
+    const treasury = await this.verifyTreasuryAccess(treasuryId, userId);
 
     const [rules, assets, recentTransactions] = await Promise.all([
       this.prisma.rule.findMany({
@@ -188,7 +190,33 @@ export class RulesService {
               status: 'PENDING',
             },
           });
+
+          if (res.suggestedAction.type === 'CREATE_APPROVAL') {
+            const payload = res.suggestedAction.payload || {};
+            await this.prisma.approval.create({
+              data: {
+                treasuryId,
+                actionType: 'SCHEDULED_PAYOUT',
+                recipientAddress: payload.recipientAddress,
+                amount: payload.amount,
+                tokenSymbol: 'NEAR',
+                reason: payload.reason || `Triggered by rule ${rule.name}`,
+                status: 'PENDING',
+                expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+              },
+            });
+          }
         }
+
+        // Send Telegram Rule Alert
+        this.telegramService
+          .notifyRuleTriggered({
+            treasuryName: treasury.name,
+            ruleName: res.ruleName,
+            reason: res.reason,
+            severity: 'WARNING',
+          })
+          .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
       }
     }
 

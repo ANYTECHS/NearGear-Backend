@@ -5,6 +5,7 @@ import { TransactionsService } from './transactions.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BlockchainService } from '../blockchain/blockchain.service.js';
 import { NearService } from '../blockchain/near.service.js';
+import { TelegramService } from '../notifications/telegram.service.js';
 import { TransactionTypeDto } from './dto/propose-transaction.dto.js';
 
 describe('TransactionsService', () => {
@@ -58,6 +59,13 @@ describe('TransactionsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: BlockchainService, useValue: blockchainService },
         { provide: NearService, useValue: nearService },
+        {
+          provide: TelegramService,
+          useValue: {
+            notifyTransactionRecorded: jest.fn().mockResolvedValue(true),
+            notifyTransactionProposed: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 

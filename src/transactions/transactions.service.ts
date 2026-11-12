@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BlockchainService } from '../blockchain/blockchain.service.js';
 import { NearService } from '../blockchain/near.service.js';
+import { TelegramService } from '../notifications/telegram.service.js';
 import { ProposeTransactionDto } from './dto/propose-transaction.dto.js';
 import { RecordTransactionDto } from './dto/record-transaction.dto.js';
 import { QueryTransactionsDto } from './dto/query-transactions.dto.js';
@@ -20,6 +21,7 @@ export class TransactionsService {
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
     private nearService: NearService,
+    private telegramService: TelegramService,
   ) {}
 
   private async verifyTreasuryAccess(treasuryId: string, userId: string) {
@@ -63,6 +65,19 @@ export class TransactionsService {
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
       },
     });
+
+    // Send Telegram alert
+    this.telegramService
+      .notifyTransactionProposed({
+        treasuryName: treasury.name,
+        actionType: dto.type || 'TRANSFER',
+        amount: dto.amount,
+        tokenSymbol: dto.tokenSymbol || 'NEAR',
+        recipientAddress: toAddress,
+        reason: dto.reason,
+        approvalId: approval.id,
+      })
+      .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
 
     return {
       message: 'Transaction proposal created and pending user approval',
@@ -144,6 +159,20 @@ export class TransactionsService {
 
       return record;
     });
+
+    // Send Telegram alert for recorded on-chain transaction
+    this.telegramService
+      .notifyTransactionRecorded({
+        treasuryName: treasury.name,
+        type: (dto.type as any) || 'TRANSFER',
+        amount: dto.amount,
+        tokenSymbol: dto.tokenSymbol || 'NEAR',
+        fromAddress,
+        toAddress,
+        txHash,
+        status,
+      })
+      .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
 
     return txRecord;
   }

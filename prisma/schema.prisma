@@ -163,6 +163,8 @@ model Treasury {
   snapshots        TreasurySnapshot[]
   agentActions     AgentAction[]
   agentMessages    AgentMessage[]
+  agents           Agent[]
+  spendRequests    AgentSpendRequest[]
 }
 
 
@@ -273,6 +275,8 @@ model Approval {
 
   txHash String?
 
+  spendRequest AgentSpendRequest?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -362,6 +366,7 @@ model TreasurySnapshot {
   nearValueUsd Decimal? @db.Decimal(30, 8)
   usdtValueUsd Decimal? @db.Decimal(30, 8)
   usdcValueUsd Decimal? @db.Decimal(30, 8)
+  bnbValueUsd  Decimal? @db.Decimal(30, 8)
 
   createdAt DateTime @default(now())
 
@@ -404,3 +409,85 @@ model AuthNonce {
 
   @@index([address])
 }
+
+enum SpendRequestStatus {
+  AUTO_APPROVED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXECUTED
+  FAILED
+  BLOCKED_BY_POLICY
+}
+
+model Agent {
+  id         String   @id @default(cuid())
+
+  treasuryId String
+  treasury   Treasury @relation(fields: [treasuryId], references: [id], onDelete: Cascade)
+
+  name       String
+  accountId  String
+  role       String?
+  isActive   Boolean  @default(true)
+
+  // 1. Approved Recipient Permission
+  approvedRecipients String[] @default([])
+  enforceWhitelist   Boolean  @default(true)
+
+  // 2. Transaction Approval Permission
+  instantSpendingLimit Decimal  @default(5.0) @db.Decimal(30, 18)
+  dailySpendingLimit   Decimal  @default(20.0) @db.Decimal(30, 18)
+  spentToday           Decimal  @default(0.0) @db.Decimal(30, 18)
+  lastSpendingReset    DateTime @default(now())
+
+  // 3. Task-Based Permission
+  approvedTasks        String[] @default([])
+  enforceTaskWhitelist Boolean  @default(true)
+
+  // 4. Time-Based Permission
+  timeWindowEnabled    Boolean  @default(false)
+  startHourUtc         Int      @default(8)
+  endHourUtc           Int      @default(18)
+  allowedDaysOfWeek    Int[]    @default([1, 2, 3, 4, 5])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spendRequests AgentSpendRequest[]
+
+  @@unique([treasuryId, accountId])
+  @@index([treasuryId])
+}
+
+model AgentSpendRequest {
+  id         String   @id @default(cuid())
+
+  treasuryId String
+  treasury   Treasury @relation(fields: [treasuryId], references: [id], onDelete: Cascade)
+
+  agentId    String
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  recipientAddress String
+  amount           Decimal @db.Decimal(30, 18)
+  tokenSymbol      String  @default("NEAR")
+
+  task             String
+  reason           String?
+
+  status           SpendRequestStatus @default(PENDING_APPROVAL)
+  policyViolations String[]           @default([])
+
+  approvalId       String?            @unique
+  approval         Approval?          @relation(fields: [approvalId], references: [id])
+
+  txHash           String?
+  executedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([treasuryId])
+  @@index([agentId])
+}
+

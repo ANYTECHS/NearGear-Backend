@@ -43,16 +43,21 @@ async function bootstrap() {
 
   // 3. Swagger OpenAPI Documentation
   const config = new DocumentBuilder()
-    .setTitle('AI Treasury Agent API')
+    .setTitle('NearGear — AI Treasury & Agent Security API')
     .setDescription(
-      'REST API for AI-powered Programmable Treasury Management on NEAR Protocol.\n\n' +
-      'Features:\n' +
-      '- Web3 Nonce & Signature Authentication\n' +
-      '- Treasury Management & On-chain Vault Integration\n' +
-      '- NEAR & NEP-141 Live Balance Verification\n' +
-      '- Transaction Proposals & Approval Workflows\n' +
-      '- Rule Engine & Automated Limit Enforcement\n' +
-      '- AI Assistant with Grounded Treasury Insights & Anomaly Detection',
+      'Smart AI. Secure Treasury.\n\n' +
+      'Businesses can give AI agents permission to spend money, but NearGear makes sure they spend only within the rules established by the business.\n\n' +
+      '### Core Security Permissions:\n' +
+      '1. **Approved Recipient Permission**: Autonomous agents can only disburse payments to wallet addresses pre-approved by the treasury owner.\n' +
+      '2. **Transaction Approval Permission**: Payments at or below the instant threshold (e.g. 5 NEAR) are auto-approved; payments above require human owner approval.\n' +
+      '3. **Task-Based Permission**: Agents can only spend on authorized task and service categories (e.g. cloud_hosting, research_apis, compute_resources).\n' +
+      '4. **Time-Based Permission**: Agents can only initiate disbursements during authorized operating windows (e.g. 8:00 AM - 6:00 PM UTC, Mon-Fri).\n\n' +
+      '### Additional Capabilities:\n' +
+      '- Web3 Nonce & Signature Authentication (NEAR Ed25519)\n' +
+      '- Multi-Asset Treasury Management with Live NEAR & NEP-141 Balances\n' +
+      '- On-Chain TreasuryVault Smart Contract Enforcement\n' +
+      '- Rule Engine & Outlier Anomaly Detection\n' +
+      '- Grounded AI Treasury Copilot (Groq / LLaMA 3.3)',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -70,7 +75,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document, {
-    customSiteTitle: 'AI Treasury Agent API Docs',
+    customSiteTitle: 'NearGear API Docs',
     swaggerOptions: {
       persistAuthorization: true,
     },

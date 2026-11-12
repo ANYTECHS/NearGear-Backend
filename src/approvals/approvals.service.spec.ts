@@ -4,6 +4,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { ApprovalsService } from './approvals.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BlockchainService } from '../blockchain/blockchain.service.js';
+import { TelegramService } from '../notifications/telegram.service.js';
 
 describe('ApprovalsService', () => {
   let service: ApprovalsService;
@@ -43,6 +44,12 @@ describe('ApprovalsService', () => {
         ApprovalsService,
         { provide: PrismaService, useValue: prisma },
         { provide: BlockchainService, useValue: blockchainService },
+        {
+          provide: TelegramService,
+          useValue: {
+            notifyApprovalDecision: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 

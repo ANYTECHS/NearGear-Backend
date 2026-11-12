@@ -669,6 +669,51 @@
         ]
       }
     },
+    "/api/notifications/telegram/status": {
+      "get": {
+        "operationId": "NotificationsController_getStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Telegram status"
+          }
+        },
+        "summary": "Get Telegram notification bot status and configuration",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/api/notifications/telegram/test": {
+      "post": {
+        "operationId": "NotificationsController_sendTestNotification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notification sent"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a test notification via Telegram bot",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
     "/api/approvals/{treasuryId}": {
       "get": {
         "operationId": "ApprovalsController_list",
@@ -1131,7 +1176,7 @@
         ],
         "summary": "Chat with AI Treasury Agent with grounded real-time treasury context",
         "tags": [
-          "AI Agent"
+          "AI Agent & Security Permissions"
         ]
       }
     },
@@ -1160,7 +1205,7 @@
         ],
         "summary": "Get AI-generated treasury insights",
         "tags": [
-          "AI Agent"
+          "AI Agent & Security Permissions"
         ]
       }
     },
@@ -1189,7 +1234,7 @@
         ],
         "summary": "Get AI proposed recommendations for a treasury",
         "tags": [
-          "AI Agent"
+          "AI Agent & Security Permissions"
         ]
       }
     },
@@ -1218,7 +1263,7 @@
         ],
         "summary": "Get conversation history with AI Agent",
         "tags": [
-          "AI Agent"
+          "AI Agent & Security Permissions"
         ]
       }
     },
@@ -1247,7 +1292,286 @@
         ],
         "summary": "Run comprehensive anomaly detection and financial health analysis",
         "tags": [
-          "AI Agent"
+          "AI Agent & Security Permissions"
+        ]
+      }
+    },
+    "/api/agent/{treasuryId}/agents": {
+      "post": {
+        "operationId": "AgentController_createAgent",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent registered with security rules"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register an AI Agent and configure spending permissions (Approved recipients, Instant approval limit, Approved tasks, Time window)",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      },
+      "get": {
+        "operationId": "AgentController_listAgents",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of agents"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all registered AI Agents and their security rules",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      }
+    },
+    "/api/agent/{treasuryId}/agents/{agentId}": {
+      "get": {
+        "operationId": "AgentController_getAgentById",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent details"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get details and security rules for a specific AI agent",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      },
+      "patch": {
+        "operationId": "AgentController_updateAgent",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update security permissions and spending limits for an AI agent",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentController_deleteAgent",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent deleted"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an AI agent from the treasury",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      }
+    },
+    "/api/agent/spend-request": {
+      "post": {
+        "operationId": "AgentController_spendRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentSpendRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evaluation result: AUTO_APPROVED (under threshold), PENDING_APPROVAL (over threshold), or BLOCKED_BY_POLICY"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Autonomous Agent Spend Gateway: Evaluates Approved Recipient, Transaction Approval Threshold, Task-Based, and Time-Based Permissions",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      }
+    },
+    "/api/agent/{treasuryId}/spend-requests": {
+      "get": {
+        "operationId": "AgentController_listSpendRequests",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of spend requests"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all spend requests processed for this treasury with policy decisions and approval status",
+        "tags": [
+          "AI Agent & Security Permissions"
+        ]
+      }
+    },
+    "/api/agent/{treasuryId}/spend-requests/{requestId}": {
+      "get": {
+        "operationId": "AgentController_getSpendRequestById",
+        "parameters": [
+          {
+            "name": "treasuryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Spend request details"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get details of a specific agent spend request",
+        "tags": [
+          "AI Agent & Security Permissions"
         ]
       }
     },
@@ -1370,8 +1694,8 @@
     }
   },
   "info": {
-    "title": "AI Treasury Agent API",
-    "description": "REST API for AI-powered Programmable Treasury Management on NEAR Protocol.\n\nFeatures:\n- Web3 Nonce & Signature Authentication (NEAR Ed25519)\n- Treasury Management & On-chain Vault Integration\n- NEAR & NEP-141 Live Balance Verification\n- Transaction Proposals & Approval Workflows\n- Rule Engine & Automated Limit Enforcement\n- AI Assistant with Grounded Treasury Insights & Anomaly Detection",
+    "title": "NearGear — AI Treasury & Agent Security API",
+    "description": "Smart AI. Secure Treasury.\n\nBusinesses can give AI agents permission to spend money, but NearGear makes sure they spend only within the rules established by the business.\n\n### Core Security Permissions:\n1. **Approved Recipient Permission**: Autonomous agents can only disburse payments to wallet addresses pre-approved by the treasury owner.\n2. **Transaction Approval Permission**: Payments at or below the instant threshold (e.g. 5 NEAR) are auto-approved; payments above require human owner approval.\n3. **Task-Based Permission**: Agents can only spend on authorized task and service categories (e.g. cloud_hosting, research_apis, compute_resources).\n4. **Time-Based Permission**: Agents can only initiate disbursements during authorized operating windows (e.g. 8:00 AM - 6:00 PM UTC, Mon-Fri).\n\n### Additional Capabilities:\n- Web3 Nonce & Signature Authentication (NEAR Ed25519)\n- Multi-Asset Treasury Management with Live NEAR & NEP-141 Balances\n- On-Chain TreasuryVault Smart Contract Enforcement\n- Rule Engine & Outlier Anomaly Detection\n- Grounded AI Treasury Copilot (Groq / LLaMA 3.3)",
     "version": "1.0",
     "contact": {}
   },
@@ -1629,6 +1953,21 @@
           "amount"
         ]
       },
+      "TestNotificationDto": {
+        "type": "object",
+        "properties": {
+          "chatId": {
+            "type": "string",
+            "description": "Target Telegram chat ID. Defaults to TELEGRAM_CHAT_ID from .env if omitted",
+            "example": "123456789"
+          },
+          "message": {
+            "type": "string",
+            "description": "Custom message to test Telegram bot delivery",
+            "example": "Testing NearGear Telegram Transaction Alerts"
+          }
+        }
+      },
       "ExecuteApprovalDto": {
         "type": "object",
         "properties": {
@@ -1756,6 +2095,223 @@
         "required": [
           "treasuryId",
           "message"
+        ]
+      },
+      "CreateAgentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name of the AI agent",
+            "example": "Computing & Research Agent"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "NEAR account ID of the AI agent",
+            "example": "compute-agent.testnet"
+          },
+          "role": {
+            "type": "string",
+            "description": "Assigned functional role for this agent",
+            "example": "CLOUD_AND_APIS"
+          },
+          "approvedRecipients": {
+            "description": "List of approved recipient wallet addresses this agent is allowed to pay",
+            "example": [
+              "hosting-provider.testnet",
+              "research-api.testnet"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enforceWhitelist": {
+            "type": "boolean",
+            "description": "Whether recipient whitelist enforcement is enabled",
+            "default": true
+          },
+          "instantSpendingLimit": {
+            "type": "string",
+            "description": "Maximum amount (in NEAR) that can be spent instantly without human owner approval. Payments above this require human approval.",
+            "example": "5.0",
+            "default": "5.0"
+          },
+          "dailySpendingLimit": {
+            "type": "string",
+            "description": "Maximum daily spending limit in NEAR (24-hour rolling cap)",
+            "example": "20.0",
+            "default": "20.0"
+          },
+          "approvedTasks": {
+            "description": "List of authorized task or service categories the agent is allowed to spend on",
+            "example": [
+              "cloud_hosting",
+              "research_apis",
+              "compute_resources"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enforceTaskWhitelist": {
+            "type": "boolean",
+            "description": "Whether task-based permission whitelist is enforced",
+            "default": true
+          },
+          "timeWindowEnabled": {
+            "type": "boolean",
+            "description": "Whether time-window spending restriction is enabled",
+            "default": false
+          },
+          "startHourUtc": {
+            "type": "number",
+            "description": "Start hour in UTC (0-23) for approved spending window",
+            "example": 8,
+            "default": 8
+          },
+          "endHourUtc": {
+            "type": "number",
+            "description": "End hour in UTC (0-23) for approved spending window",
+            "example": 18,
+            "default": 18
+          },
+          "allowedDaysOfWeek": {
+            "description": "Approved days of week (0=Sunday, 1=Monday ... 6=Saturday). Defaults to weekdays [1,2,3,4,5]",
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "accountId"
+        ]
+      },
+      "UpdateAgentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name of the AI agent"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "NEAR account ID of the AI agent"
+          },
+          "role": {
+            "type": "string",
+            "description": "Assigned functional role"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the agent is active"
+          },
+          "approvedRecipients": {
+            "description": "Approved recipient wallet addresses",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enforceWhitelist": {
+            "type": "boolean",
+            "description": "Whether recipient whitelist enforcement is enabled"
+          },
+          "instantSpendingLimit": {
+            "type": "string",
+            "description": "Maximum amount (in NEAR) that can be spent instantly without human owner approval. Payments above this require human approval."
+          },
+          "dailySpendingLimit": {
+            "type": "string",
+            "description": "Maximum daily spending limit in NEAR (24-hour rolling cap)"
+          },
+          "approvedTasks": {
+            "description": "List of authorized task or service categories",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enforceTaskWhitelist": {
+            "type": "boolean",
+            "description": "Whether task-based permission whitelist is enforced"
+          },
+          "timeWindowEnabled": {
+            "type": "boolean",
+            "description": "Whether time-window spending restriction is enabled"
+          },
+          "startHourUtc": {
+            "type": "number",
+            "description": "Start hour in UTC (0-23)"
+          },
+          "endHourUtc": {
+            "type": "number",
+            "description": "End hour in UTC (0-23)"
+          },
+          "allowedDaysOfWeek": {
+            "description": "Approved days of week (0=Sunday ... 6=Saturday)",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "AgentSpendRequestDto": {
+        "type": "object",
+        "properties": {
+          "treasuryId": {
+            "type": "string",
+            "description": "Target Treasury ID",
+            "example": "cm123abc..."
+          },
+          "agentAccountId": {
+            "type": "string",
+            "description": "AI Agent NEAR account ID making the spending request",
+            "example": "compute-agent.testnet"
+          },
+          "recipientAddress": {
+            "type": "string",
+            "description": "Destination wallet address for the payment",
+            "example": "hosting-provider.testnet"
+          },
+          "amount": {
+            "type": "string",
+            "description": "Payment amount in NEAR",
+            "example": "3.5"
+          },
+          "task": {
+            "type": "string",
+            "description": "Task or service category (e.g. cloud_hosting, research_apis, compute_resources)",
+            "example": "cloud_hosting"
+          },
+          "tokenSymbol": {
+            "type": "string",
+            "description": "Token symbol (defaults to NEAR)",
+            "default": "NEAR"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Detailed explanation, invoice ID, or reason for the payment",
+            "example": "Monthly Kubernetes cluster compute fee for data collection node"
+          }
+        },
+        "required": [
+          "treasuryId",
+          "agentAccountId",
+          "recipientAddress",
+          "amount",
+          "task"
         ]
       }
     }

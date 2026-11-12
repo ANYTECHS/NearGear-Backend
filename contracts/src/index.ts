@@ -17,17 +17,38 @@ export interface SpendingStatus {
   remaining_today: string;
 }
 
+export interface TimeWindowStatus {
+  enabled: boolean;
+  start_hour_utc: number;
+  end_hour_utc: number;
+}
+
 @NearBindgen({ requireInit: true })
 export class TreasuryVault {
   owner_id: string = '';
   _paused: boolean = false;
+
+  // Agent Authorization
   authorized_agents: UnorderedSet<string> = new UnorderedSet<string>('a');
+
+  // 1. Approved Recipient Permission
   approved_recipients: UnorderedSet<string> = new UnorderedSet<string>('r');
   whitelist_recipients_enabled: boolean = false;
-  daily_spending_limit: bigint = BigInt('10000000000000000000000000'); // 10 NEAR
-  max_transaction_amount: bigint = BigInt('2000000000000000000000000'); // 2 NEAR
+
+  // 2. Transaction Approval & Spending Limits (5 NEAR instant cap default)
+  daily_spending_limit: bigint = BigInt('20000000000000000000000000'); // 20 NEAR
+  max_transaction_amount: bigint = BigInt('5000000000000000000000000'); // 5 NEAR instant approval threshold
   spent_today: bigint = BigInt(0);
   last_spending_reset: bigint = BigInt(0);
+
+  // 3. Task-Based Permission
+  approved_tasks: UnorderedSet<string> = new UnorderedSet<string>('t');
+  task_whitelist_enabled: boolean = false;
+
+  // 4. Time-Based Permission (Operating window in UTC, e.g. 8 AM to 6 PM)
+  time_window_enabled: boolean = false;
+  window_start_hour_utc: number = 8;
+  window_end_hour_utc: number = 18;
 
   @initialize({})
   init({
@@ -42,6 +63,11 @@ export class TreasuryVault {
     this.owner_id = owner_id || near.predecessorAccountId();
     this._paused = false;
     this.whitelist_recipients_enabled = false;
+    this.task_whitelist_enabled = false;
+    this.time_window_enabled = false;
+    this.window_start_hour_utc = 8;
+    this.window_end_hour_utc = 18;
+
     if (daily_spending_limit) {
       this.daily_spending_limit = BigInt(daily_spending_limit);
     }
@@ -97,6 +123,8 @@ export class TreasuryVault {
     near.log(`Agent deauthorized: ${agent_id}`);
   }
 
+  // --- 1. APPROVED RECIPIENT PERMISSION ---
+
   @call({})
   approve_recipient({ recipient_id }: { recipient_id: string }) {
     this.assertOwner();
@@ -118,6 +146,8 @@ export class TreasuryVault {
     near.log(`Recipient whitelist enforcement set to ${enabled}`);
   }
 
+  // --- 2. TRANSACTION APPROVAL & SPENDING LIMITS ---
+
   @call({})
   set_limits({
     daily_spending_limit,
@@ -130,7 +160,61 @@ export class TreasuryVault {
     this.daily_spending_limit = BigInt(daily_spending_limit);
     this.max_transaction_amount = BigInt(max_transaction_amount);
     near.log(
-      `Limits updated: daily=${this.daily_spending_limit}, max_tx=${this.max_transaction_amount}`,
+      `Limits updated: daily=${this.daily_spending_limit}, instant_cap=${this.max_transaction_amount}`,
+    );
+  }
+
+  // --- 3. TASK-BASED PERMISSION ---
+
+  @call({})
+  approve_task({ task }: { task: string }) {
+    this.assertOwner();
+    const taskKey = task.trim().toLowerCase();
+    this.approved_tasks.set(taskKey);
+    near.log(`Task approved: ${taskKey}`);
+  }
+
+  @call({})
+  revoke_task({ task }: { task: string }) {
+    this.assertOwner();
+    const taskKey = task.trim().toLowerCase();
+    this.approved_tasks.remove(taskKey);
+    near.log(`Task revoked: ${taskKey}`);
+  }
+
+  @call({})
+  set_task_whitelist_enabled({ enabled }: { enabled: boolean }) {
+    this.assertOwner();
+    this.task_whitelist_enabled = Boolean(enabled);
+    near.log(`Task whitelist enforcement set to ${enabled}`);
+  }
+
+  // --- 4. TIME-BASED PERMISSION ---
+
+  @call({})
+  set_time_window({
+    enabled,
+    start_hour_utc,
+    end_hour_utc,
+  }: {
+    enabled: boolean;
+    start_hour_utc: number;
+    end_hour_utc: number;
+  }) {
+    this.assertOwner();
+    assert(
+      start_hour_utc >= 0 && start_hour_utc <= 23,
+      'start_hour_utc must be 0-23',
+    );
+    assert(
+      end_hour_utc >= 0 && end_hour_utc <= 23,
+      'end_hour_utc must be 0-23',
+    );
+    this.time_window_enabled = Boolean(enabled);
+    this.window_start_hour_utc = start_hour_utc;
+    this.window_end_hour_utc = end_hour_utc;
+    near.log(
+      `Time window set: enabled=${enabled}, hours=${start_hour_utc}:00-${end_hour_utc}:00 UTC`,
     );
   }
 
@@ -159,10 +243,12 @@ export class TreasuryVault {
   execute_transfer({
     recipient_id,
     amount,
+    task,
     reason,
   }: {
     recipient_id: string;
     amount: string;
+    task?: string;
     reason?: string;
   }) {
     assert(!this._paused, 'Treasury vault is currently paused');
@@ -177,10 +263,14 @@ export class TreasuryVault {
     );
 
     const transferAmount = BigInt(amount);
-    assert(transferAmount > BigInt(0), 'Transfer amount must be greater than zero');
+    assert(
+      transferAmount > BigInt(0),
+      'Transfer amount must be greater than zero',
+    );
 
-    // Policy enforcement for AI agents
+    // Strict 4-Permission Policy enforcement for AI agents
     if (!isOwner && isAgent) {
+      // 1. Approved Recipient Permission
       if (this.whitelist_recipients_enabled) {
         assert(
           this.approved_recipients.contains(recipient_id),
@@ -188,11 +278,34 @@ export class TreasuryVault {
         );
       }
 
+      // 3. Task-Based Permission
+      if (this.task_whitelist_enabled) {
+        assert(
+          task && this.approved_tasks.contains(task.trim().toLowerCase()),
+          'Task is not on the authorized task list for this treasury',
+        );
+      }
+
+      // 4. Time-Based Permission (UTC hour window)
+      if (this.time_window_enabled) {
+        const currentSec = Number(
+          near.blockTimestamp() / BigInt(1_000_000_000),
+        );
+        const currentHourUtc = Math.floor((currentSec % 86400) / 3600);
+        assert(
+          currentHourUtc >= this.window_start_hour_utc &&
+            currentHourUtc < this.window_end_hour_utc,
+          'Transfers are only allowed during configured operating hours',
+        );
+      }
+
+      // 2. Transaction Approval Permission (Instant cap limit)
       assert(
         transferAmount <= this.max_transaction_amount,
-        'Transfer amount exceeds maximum per-transaction limit for agents',
+        'Transfer amount exceeds maximum instant approval limit for autonomous agents',
       );
 
+      // Daily Limit Check & Reset
       const currentTime = near.blockTimestamp();
       if (currentTime >= this.last_spending_reset + ONE_DAY_NS) {
         this.spent_today = BigInt(0);
@@ -209,6 +322,8 @@ export class TreasuryVault {
     }
 
     const reasonStr = reason || 'Automated treasury transfer';
+    const taskStr = task || 'general';
+
     near.log(
       JSON.stringify({
         standard: 'vaultiq',
@@ -218,6 +333,7 @@ export class TreasuryVault {
           sender: caller,
           recipient: recipient_id,
           amount: transferAmount.toString(),
+          task: taskStr,
           reason: reasonStr,
         },
       }),
@@ -266,6 +382,25 @@ export class TreasuryVault {
   }
 
   @view({})
+  is_task_approved({ task }: { task: string }): boolean {
+    return this.approved_tasks.contains(task.trim().toLowerCase());
+  }
+
+  @view({})
+  is_task_whitelist_enabled(): boolean {
+    return this.task_whitelist_enabled;
+  }
+
+  @view({})
+  get_time_window(): TimeWindowStatus {
+    return {
+      enabled: this.time_window_enabled,
+      start_hour_utc: this.window_start_hour_utc,
+      end_hour_utc: this.window_end_hour_utc,
+    };
+  }
+
+  @view({})
   get_spending_status(): SpendingStatus {
     const currentTime = near.blockTimestamp();
     const effectiveSpent =
@@ -294,5 +429,10 @@ export class TreasuryVault {
   @view({})
   get_approved_recipients(): string[] {
     return this.approved_recipients.toArray();
+  }
+
+  @view({})
+  get_approved_tasks(): string[] {
+    return this.approved_tasks.toArray();
   }
 }

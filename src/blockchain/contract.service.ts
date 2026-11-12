@@ -152,4 +152,62 @@ export class ContractService {
     );
     return info.balanceFormatted;
   }
+
+  async isTaskApproved(task: string, contractId?: string): Promise<boolean> {
+    const target = this.resolveContractId(contractId);
+    if (!target || !task) return false;
+
+    const approved = await this.callViewMethod<boolean>(
+      target,
+      'is_task_approved',
+      { task: task.trim().toLowerCase() },
+    );
+
+    return Boolean(approved);
+  }
+
+  async isTaskWhitelistEnabled(contractId?: string): Promise<boolean> {
+    const target = this.resolveContractId(contractId);
+    if (!target) return false;
+
+    const enabled = await this.callViewMethod<boolean>(
+      target,
+      'is_task_whitelist_enabled',
+    );
+
+    return Boolean(enabled);
+  }
+
+  async getTimeWindow(
+    contractId?: string,
+  ): Promise<{ enabled: boolean; start_hour_utc: number; end_hour_utc: number } | null> {
+    const target = this.resolveContractId(contractId);
+    if (!target) return null;
+
+    return this.callViewMethod<any>(target, 'get_time_window');
+  }
+
+  async getApprovedTasks(contractId?: string): Promise<string[]> {
+    const target = this.resolveContractId(contractId);
+    if (!target) return [];
+
+    const tasks = await this.callViewMethod<string[]>(
+      target,
+      'get_approved_tasks',
+    );
+
+    return tasks || [];
+  }
+
+  async getApprovedRecipients(contractId?: string): Promise<string[]> {
+    const target = this.resolveContractId(contractId);
+    if (!target) return [];
+
+    const recipients = await this.callViewMethod<string[]>(
+      target,
+      'get_approved_recipients',
+    );
+
+    return recipients || [];
+  }
 }

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BlockchainService } from '../blockchain/blockchain.service.js';
+import { TelegramService } from '../notifications/telegram.service.js';
 
 @Injectable()
 export class ApprovalsService {
@@ -15,6 +16,7 @@ export class ApprovalsService {
   constructor(
     private prisma: PrismaService,
     private blockchainService: BlockchainService,
+    private telegramService: TelegramService,
   ) {}
 
   private async verifyTreasuryAccess(treasuryId: string, userId: string) {
@@ -77,7 +79,7 @@ export class ApprovalsService {
   }
 
   async approve(treasuryId: string, approvalId: string, userId: string) {
-    await this.verifyTreasuryAccess(treasuryId, userId);
+    const treasury = await this.verifyTreasuryAccess(treasuryId, userId);
 
     const approval = await this.prisma.approval.findUnique({
       where: { id: approvalId },
@@ -99,17 +101,30 @@ export class ApprovalsService {
       throw new BadRequestException('This approval request has expired');
     }
 
-    return this.prisma.approval.update({
+    const updated = await this.prisma.approval.update({
       where: { id: approvalId },
       data: {
         status: 'APPROVED',
         approvedAt: new Date(),
       },
     });
+
+    this.telegramService
+      .notifyApprovalDecision({
+        treasuryName: treasury.name,
+        status: 'APPROVED',
+        amount: approval.amount?.toString(),
+        tokenSymbol: approval.tokenSymbol || 'NEAR',
+        recipientAddress: approval.recipientAddress || undefined,
+        reason: approval.reason || undefined,
+      })
+      .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
+
+    return updated;
   }
 
   async reject(treasuryId: string, approvalId: string, userId: string, reason?: string) {
-    await this.verifyTreasuryAccess(treasuryId, userId);
+    const treasury = await this.verifyTreasuryAccess(treasuryId, userId);
 
     const approval = await this.prisma.approval.findUnique({
       where: { id: approvalId },
@@ -123,7 +138,7 @@ export class ApprovalsService {
       throw new BadRequestException(`Cannot reject request in ${approval.status} status`);
     }
 
-    return this.prisma.approval.update({
+    const updated = await this.prisma.approval.update({
       where: { id: approvalId },
       data: {
         status: 'REJECTED',
@@ -131,6 +146,19 @@ export class ApprovalsService {
         ...(reason && { reason }),
       },
     });
+
+    this.telegramService
+      .notifyApprovalDecision({
+        treasuryName: treasury.name,
+        status: 'REJECTED',
+        amount: approval.amount?.toString(),
+        tokenSymbol: approval.tokenSymbol || 'NEAR',
+        recipientAddress: approval.recipientAddress || undefined,
+        reason: reason || approval.reason || undefined,
+      })
+      .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
+
+    return updated;
   }
 
   async recordExecution(
@@ -208,6 +236,17 @@ export class ApprovalsService {
 
       return app;
     });
+
+    this.telegramService
+      .notifyApprovalDecision({
+        treasuryName: treasury.name,
+        status: executionStatus === 'EXECUTED' ? 'EXECUTED' : 'APPROVED',
+        amount: approval.amount?.toString(),
+        tokenSymbol: approval.tokenSymbol || 'NEAR',
+        recipientAddress: approval.recipientAddress || undefined,
+        reason: `On-chain execution recorded with hash ${hash}`,
+      })
+      .catch((err) => this.logger.warn(`Telegram error: ${err.message}`));
 
     return updatedApproval;
   }
