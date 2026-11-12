@@ -36,4 +36,12 @@ export class VerifySignatureDto {
   @IsOptional()
   @IsString()
   publicKey?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional nonce string (if omitted, automatically extracted from message)',
+    example: 'abcdef1234567890abcdef1234567890',
+  })
+  @IsOptional()
+  @IsString()
+  nonce?: string;
 }

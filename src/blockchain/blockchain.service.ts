@@ -23,7 +23,7 @@ export class BlockchainService implements OnModuleInit {
   private rpcUrl: string;
   private network: string;
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
   onModuleInit() {
     this.network = this.configService.get<string>('nearNetwork', 'testnet');
@@ -66,11 +66,11 @@ export class BlockchainService implements OnModuleInit {
 
       const json = await response.json();
       if (json.error) {
-        throw new Error(
+        const errorDetail =
           typeof json.error === 'object'
-            ? json.error.message || json.error.name || JSON.stringify(json.error)
-            : String(json.error),
-        );
+            ? json.error.data || json.error.cause?.name || json.error.message || JSON.stringify(json.error)
+            : String(json.error);
+        throw new Error(errorDetail);
       }
 
       return json.result;
@@ -122,6 +122,15 @@ export class BlockchainService implements OnModuleInit {
 
       return { raw, formatted };
     } catch (error) {
+      if (
+        error.message?.includes('does not exist') ||
+        error.message?.includes('UNKNOWN_ACCOUNT')
+      ) {
+        this.logger.debug(
+          `Account ${accountId} does not exist on NEAR ${this.network}, balance is 0`,
+        );
+        return { raw: 0n, formatted: '0' };
+      }
       this.logger.warn(`Failed to fetch NEAR balance for ${accountId}: ${error.message}`);
       return { raw: 0n, formatted: '0' };
     }
@@ -247,6 +256,18 @@ export class BlockchainService implements OnModuleInit {
   }
 
   async getTransactionReceipt(txHash: string, accountId?: string) {
+    if (!txHash) return null;
+
+    // NEAR transaction hashes are 32-byte Base58 strings (~40-50 base58 characters).
+    // Avoid sending synthetic/mock IDs (e.g. 'near_tx_...') which trigger HTTP 400 Bad Request on RPC.
+    const isBase58Tx = /^[1-9A-HJ-NP-Za-km-z]{40,55}$/.test(txHash);
+    if (!isBase58Tx) {
+      this.logger.debug(
+        `Skipping on-chain receipt lookup for synthetic or non-Base58 transaction ID: ${txHash}`,
+      );
+      return null;
+    }
+
     try {
       const result = await this.rpcCall('tx', [txHash, accountId || 'system']);
       return result;

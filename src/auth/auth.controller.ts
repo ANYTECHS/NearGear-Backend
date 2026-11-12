@@ -36,6 +36,8 @@ export class AuthController {
       dto.address,
       dto.signature,
       dto.message,
+      dto.publicKey,
+      dto.nonce,
     );
     return {
       message: 'Authentication successful',

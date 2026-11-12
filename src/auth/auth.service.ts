@@ -65,6 +65,7 @@ export class AuthService {
     signature: string,
     message: string,
     publicKey?: string,
+    providedNonce?: string,
   ) {
     if (!this.nearService.isValidAccountId(rawAddress)) {
       throw new BadRequestException('Invalid NEAR account ID');
@@ -72,12 +73,20 @@ export class AuthService {
 
     const address = this.nearService.normalizeAccountId(rawAddress);
 
-    // 1. Extract nonce from the message
-    const nonceMatch = message.match(/Nonce:\s*([a-fA-F0-9]+)/);
-    if (!nonceMatch) {
+    // 1. Extract nonce from providedNonce or the message
+    let nonce = providedNonce?.trim();
+    if (!nonce && message) {
+      const nonceMatch = message.match(/Nonce:\s*([a-fA-F0-9]+)/i);
+      if (nonceMatch) {
+        nonce = nonceMatch[1];
+      } else if (/^[a-fA-F0-9]{32}$/.test(message.trim())) {
+        nonce = message.trim();
+      }
+    }
+
+    if (!nonce) {
       throw new BadRequestException('Invalid message format: nonce missing');
     }
-    const nonce = nonceMatch[1];
 
     // 2. Validate nonce in database
     const nonceRecord = await this.prisma.authNonce.findUnique({
