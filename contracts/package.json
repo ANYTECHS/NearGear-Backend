@@ -1,0 +1,19 @@
+{
+  "name": "neargear-treasury-contract",
+  "version": "1.0.0",
+  "description": "NearGear Multi-Agent Treasury Vault Smart Contract for NEAR Protocol",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "near-sdk-js build src/index.ts build/treasury_vault.wasm"
+  },
+  "dependencies": {
+    "near-sdk-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.79"
+  },
+  "overrides": {
+    "@types/node": "18.19.79"
+  }
+}
+
